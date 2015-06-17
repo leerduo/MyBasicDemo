@@ -344,6 +344,9 @@ public class BookDbHelper extends SQLiteOpenHelper {
 }
 ```
 > 需要注意的是：Because they can be long-running, be sure that you call `getWritableDatabase()` or `getReadableDatabase()` in a background thread, such as with `AsyncTask` or `IntentService`.
+
+
+
 * 插入：
 ```java
  public void insert(View view){
