@@ -1,4 +1,4 @@
-#ActionBar部分需要注意的是：
+#ActionBar
 * 修改ActionBar的样式：
 ```java
   <!-- the theme applied to the application or activity -->
@@ -263,8 +263,214 @@ list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 ```
 一些有用的api:
 `getFreeSpace()` or `getTotalSpace()`去获取空间的大小。
+#SQLite
+* 定义表的属性的时候，实现`BaseColumn`接口，这样就可以得到`_ID`属性，这样方便后面的操作(比如CursorAdapter)
+如下：
+```java
+package me.chenfuduo.mybasicdemo.db;
+
+import android.provider.BaseColumns;
+
+/**
+ * Created by Administrator on 2015/6/17.
+ */
+public final class MyBookContract {
+    public MyBookContract() {
+    }
+
+    public static abstract class BookEntry implements BaseColumns{
+        public static final String TABLE_NAME = "Book";
+
+        public static final String COLUMN_BOOK_AUTHOR = "author";
+
+        public static final String COLUMN_BOOK_PRICE = "price";
+
+        public static final String COLUMN_BOOK_PAGES = "pages";
+
+        public static final String COLUMN_BOOK_NAME = "name";
+    }
+
+}
+```
+创建数据库，使用`SQLiteOpenHelper`:
+```java
+package me.chenfuduo.mybasicdemo.db;
+
+import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+/**
+ * Created by Administrator on 2015/6/17.
+ */
+public class BookDbHelper extends SQLiteOpenHelper {
+
+    public static final int DATABASE_VERSION = 1;
+
+    public static final String DATABASE_NAME = "book.db";
+
+    private static final String CREATE_TABLE_BOOK = "CREATE TABLE " + MyBookContract.BookEntry.TABLE_NAME +
+            " (" + MyBookContract.BookEntry._ID + " INTEGER PRIMARY KEY," +
+            MyBookContract.BookEntry.COLUMN_BOOK_AUTHOR + " TEXT, " +
+            MyBookContract.BookEntry.COLUMN_BOOK_PRICE + " REAL, " +
+            MyBookContract.BookEntry.COLUMN_BOOK_PAGES + " INTEGER, " +
+            MyBookContract.BookEntry.COLUMN_BOOK_NAME + " TEXT)";
+
+    private static final String DELETE_TABLE_BOOK = "DROP TABLE IF EXISTS " + MyBookContract.BookEntry.TABLE_NAME;
 
 
+    public BookDbHelper(Context context) {
+        super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL(CREATE_TABLE_BOOK);
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        // This database is only a cache for online data, so its upgrade policy is
+        // to simply to discard the data and start over
+        db.execSQL(DELETE_TABLE_BOOK);
+        onCreate(db);
+
+    }
+
+    @Override
+    public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        onUpgrade(db, oldVersion, newVersion);
+    }
+}
+```
+> 需要注意的是：Because they can be long-running, be sure that you call `getWritableDatabase()` or `getReadableDatabase()` in a background thread, such as with `AsyncTask` or `IntentService`.
+* 插入：
+```java
+ public void insert(View view){
+        BookDbHelper dbHelper = new BookDbHelper(this);
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("name","Math");
+        values.put("author","wujun");
+        values.put("pages",453);
+        values.put("price",34.4);
+        db.insert(MyBookContract.BookEntry.TABLE_NAME,null,values);
+        values.clear();
+        values.put("name","Chinese");
+        values.put("author","duoduo");
+        values.put("pages",233);
+        values.put("price",23.4);
+        db.insert(MyBookContract.BookEntry.TABLE_NAME,null,values);
+    }
+```
+此时，执行相应的adb语句，即可查看数据库。
+首先`adb shell`进入到设备的控制台，然后`cd data/data`进入到`/data/data/`目录下，此时`ls`下，可以看到我们的程序的包名`me.chenfuduo.mybasicdemo`,
+cd到包名下，再去执行ls，看到一个文件夹的名字是`databases`，cd到该目录，ls下，看到了`book.db`这不就是创建的数据库嘛。再执行`sqlite3 book.db`,
+此时进入到sqlite的命令模式，`.table`命令可以查看数据库的表名,`.schema`可以查看创建数据库的语句，`select * from Book`，查看表的内容，看到了刚刚插入的数据。
+* 更新
+```java
+public void update(View view){
+        BookDbHelper dbHelper = new BookDbHelper(this);
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("price",10.99);
+        db.update(MyBookContract.BookEntry.TABLE_NAME,values,"name = ?",new String[]{"Math"});
+
+    }
+```
+在终端下执行上面介绍的sqlite命令，可以查看列的值已经被改变。
+* 删除
+```java
+ public void delete(View view){
+        BookDbHelper dbHelper = new BookDbHelper(this);
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        db.delete(MyBookContract.BookEntry.TABLE_NAME,"pages > ?",new String[]{"400"});
+    }
+```
+在终端下执行上面介绍的sqlite命令，可以查看大于400页的书籍全部被删除了。
+* 查询
+查询的方法的参数很多，最少的也有七个。
+```java
+public void query(View view){
+        BookDbHelper dbHelper = new BookDbHelper(this);
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        /**
+         * Query the given URL, returning a {@link Cursor} over the result set.
+         *
+         * @param distinct true if you want each row to be unique, false otherwise.
+         * @param table The table name to compile the query against.表名
+         * @param columns A list of which columns to return. Passing null will
+         *            return all columns, which is discouraged to prevent reading
+         *            data from storage that isn't going to be used.指定查询的列名
+         * @param selection A filter declaring which rows to return, formatted as an
+         *            SQL WHERE clause (excluding the WHERE itself). Passing null
+         *            will return all rows for the given table.指定where的约束条件
+         * @param selectionArgs You may include ?s in selection, which will be
+         *         replaced by the values from selectionArgs, in order that they
+         *         appear in the selection. The values will be bound as Strings.为where中的占位符提供具体的值
+         * @param groupBy A filter declaring how to group rows, formatted as an SQL
+         *            GROUP BY clause (excluding the GROUP BY itself). Passing null
+         *            will cause the rows to not be grouped.指定需要group by的列
+         * @param having A filter declare which row groups to include in the cursor,
+         *            if row grouping is being used, formatted as an SQL HAVING
+         *            clause (excluding the HAVING itself). Passing null will cause
+         *            all row groups to be included, and is required when row
+         *            grouping is not being used.为group by后的结果进一步约束
+         * @param orderBy How to order the rows, formatted as an SQL ORDER BY clause
+         *            (excluding the ORDER BY itself). Passing null will use the
+         *            default sort order, which may be unordered.指定查询结果的排序方式
+         * @param limit Limits the number of rows returned by the query,
+         *            formatted as LIMIT clause. Passing null denotes no LIMIT clause.
+         * @return A {@link Cursor} object, which is positioned before the first entry. Note that
+         * {@link Cursor}s are not synchronized, see the documentation for more details.
+         * @see Cursor
+         */
+        Cursor cursor = db.query(MyBookContract.BookEntry.TABLE_NAME, null, null, null, null, null, null);
+        if (cursor.moveToFirst()){
+            do{
+                String name = cursor.getString(cursor.getColumnIndex(MyBookContract.BookEntry.COLUMN_BOOK_NAME));
+                String author = cursor.getString(cursor.getColumnIndex(MyBookContract.BookEntry.COLUMN_BOOK_AUTHOR));
+                int pages = cursor.getInt(cursor.getColumnIndex(MyBookContract.BookEntry.COLUMN_BOOK_PAGES));
+                double price = cursor.getDouble(cursor.getColumnIndex(MyBookContract.BookEntry.COLUMN_BOOK_PRICE));
+
+                Log.e("Test","name:" + name + "-author:" + author + "-pages:" + pages + "-prices:" + price);
+
+            }while (cursor.moveToNext());
+        }
+        cursor.close();
+    }
+```
+同时，因为只是查询数据库，不要写权限，只要获取它的读取权限即可。
+#使用数据库事务
+现在数据库中的数据比较陈旧，我们需要将其删除，在删除的同时，插入新的数据，数据库事务可以保证这一系列的任务全部完成。
+```java
+ public void transaction(View view){
+        BookDbHelper dbHelper = new BookDbHelper(this);
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        db.beginTransaction();//开启事务
+        try {
+            db.delete(MyBookContract.BookEntry.TABLE_NAME,null,null);
+            /*
+            //测试代码，测试事务保证操作的完整性
+            if (true){
+                throw  new NullPointerException();
+            }*/
+
+            ContentValues values = new ContentValues();
+            values.put("name","English");
+            values.put("author","Tom");
+            values.put("pages",100);
+            values.put("price",14.4);
+            db.insert(MyBookContract.BookEntry.TABLE_NAME,null,values);
+            db.setTransactionSuccessful();//事务已经执行成功
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            db.endTransaction();//结束事务
+        }
+
+    }
+```
 
 
 
