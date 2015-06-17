@@ -10,4 +10,7 @@
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="title_activity_file_save">FileSaveActivity</string>
     <string name="title_activity_my_dbtest">MyDBTestActivity</string>
+    <string name="title_activity_my_intent">MyIntentActivity</string>
+    <string name="title_activity_get_result_from">GetResultFromActivity</string>
+    <string name="title_activity_share">ShareActivity</string>
 </resources>

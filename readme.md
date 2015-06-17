@@ -474,6 +474,272 @@ public void query(View view){
 
     }
 ```
+#交互
+* 发送显示意图
+```java
+ public void implicitIntent(View view){
+        //打电话
+       /* Uri number = Uri.parse("tel:5551234");
+        Intent callIntent = new Intent(Intent.ACTION_DIAL, number);*/
+
+
+        //查看地图(可能没有处理与之相关的Activity而挂掉)
+       /* // Map point based on address
+        Uri location = Uri.parse("geo:0,0?q=1600+Amphitheatre+Parkway,+Mountain+View,+California");
+        // Or map point based on latitude/longitude
+        // Uri location = Uri.parse("geo:37.422219,-122.08364?z=14"); // z param is zoom level
+        Intent mapIntent = new Intent(Intent.ACTION_VIEW, location);*/
+
+
+        //查看网页
+        Uri webpage = Uri.parse("http://chenfuduo.me");
+        Intent webIntent = new Intent(Intent.ACTION_VIEW, webpage);
+
+        startActivity(webIntent);
+    }
+```
+需要添加打电话的权限
+```xml
+    <uses-permission android:name="android.permission.CALL_PHONE"/>
+```
+系统根据uri来决定Intent需要的合适的MIME类型，如果没有uri，需要使用`setType()`方法指定与之关联的Intent的数据类型，
+指定了MIME类型后，系统就可以直到使用什么Activity去处理这Intent。如下的代码：
+```java
+Intent emailIntent = new Intent(Intent.ACTION_SEND);
+        // The intent does not have a URI, so declare the "text/plain" MIME type
+        emailIntent.setType(HTTP.PLAIN_TEXT_TYPE);
+        emailIntent.putExtra(Intent.EXTRA_EMAIL, new String[] {"jon@example.com"}); // recipients
+        emailIntent.putExtra(Intent.EXTRA_SUBJECT, "Email subject");
+        emailIntent.putExtra(Intent.EXTRA_TEXT, "Email message text");
+        emailIntent.putExtra(Intent.EXTRA_STREAM, Uri.parse("content://path/to/email/attachment"));
+
+
+        startActivity(emailIntent);
+```
+指定了MIME类型为：`text/plain`
+> 需要注意的是：It's important that you define your Intent to be as specific as possible. For example, if you want to display an image using the `ACTION_VIEW` intent, you should specify a MIME type of `image/*`. This prevents apps that can "view" other types of data (like a map app) from being triggered by the intent.
+
+
+* 查看当前是否有处理该Intent的Activity
+在上面的代码中，在处理查看Map的那个显示Intent，在我的模拟器中因为没有相应的Activity去处理它，所以程序直接崩溃了，报出了下面的错误log:
+```xml
+No Activity found to handle Intent { act=android.intent.action.VIEW dat=geo:0,0?q=1600+Amphitheatre+Parkway,+Mountain+View,+California }
+```
+加上下面的检查代码，即可保证程序的健壮性：
+```java
+ PackageManager packageManager = getPackageManager();
+        List activities = packageManager.queryIntentActivities(mapIntent,
+                PackageManager.MATCH_DEFAULT_ONLY);
+        boolean isIntentSafe = activities.size() > 0;
+
+        if (isIntentSafe) {
+            startActivity(mapIntent);
+        }else {
+            Toast.makeText(this,"当前不能处理该任务",Toast.LENGTH_SHORT).show();
+        }
+```
+* 创建任务选择器
+在前面的显示Intent中，假如有多个应用可以处理当前的任务，会弹出一个选择列表，用户可以选择，并且这个选择列表
+下面有一个CheckBox，用户可以选择默认的处理该任务的应用。可以选择处理一次还是总是用此应用处理。应用选择器不会
+有该提示，假如我们现在想分享一些图片，当前有很多应用可以分享，我们希望使用不同的应用去分享，即可去创建应用选择器。
+如下的代码：
+```java
+
+        Intent emailIntent = new Intent(Intent.ACTION_SEND);
+        // The intent does not have a URI, so declare the "text/plain" MIME type
+        emailIntent.setType(HTTP.PLAIN_TEXT_TYPE);
+        emailIntent.putExtra(Intent.EXTRA_EMAIL, new String[]{"jon@example.com"}); // recipients
+        emailIntent.putExtra(Intent.EXTRA_SUBJECT, "Email subject");
+        emailIntent.putExtra(Intent.EXTRA_TEXT, "Email message text");
+        emailIntent.putExtra(Intent.EXTRA_STREAM, Uri.parse("content://path/to/email/attachment"));
+
+
+
+
+        String title ="Test";
+        // Create intent to show chooser
+        Intent chooser = Intent.createChooser(emailIntent, title);
+
+        // Verify the intent will resolve to at least one activity
+        if (emailIntent.resolveActivity(getPackageManager()) != null) {
+            startActivity(chooser);
+        }
+```
+#从启动的Activity得到返回结果
+如果想从启动的Activity中得到返回结果，不能使用`startActivity(intent)`，需要使用`startActivityForResult(intent,int requestCode)`
+如下：
+```java
+  Intent pickContactIntent = new Intent(Intent.ACTION_PICK, Uri.parse("content://contacts"));
+        pickContactIntent.setType(ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE); // Show user only contacts w/ phone numbers
+        startActivityForResult(pickContactIntent, PICK_CONTACT_REQUEST);
+```
+当用户在跳转后的Activity处理完动作，执行`onActivityResult(int requestCode, int resultCode, Intent data)`得到我们想要的数据。
+如下的代码：
+```java
+  @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        // Check which request we're responding to
+        if (requestCode == PICK_CONTACT_REQUEST) {
+            // Make sure the request was successful
+            if (resultCode == RESULT_OK) {
+                // The user picked a contact.
+                // The Intent's data Uri identifies which contact was selected.
+
+            }
+        }
+
+    }
+```
+完整的代码：
+```java
+package me.chenfuduo.mybasicdemo.interacting;
+
+import android.content.Intent;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.Bundle;
+import android.provider.ContactsContract;
+import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.TextView;
+
+import me.chenfuduo.mybasicdemo.R;
+
+public class GetResultFromActivity extends AppCompatActivity {
+
+    public static final int PICK_CONTACT_REQUEST = 1;
+
+    private TextView textView;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_get_result_from);
+        textView = (TextView) findViewById(R.id.tv);
+    }
+
+    public void click(View view) {
+        Intent pickContactIntent = new Intent(Intent.ACTION_PICK, Uri.parse("content://contacts"));
+        //MIME:  "vnd.android.cursor.dir/phone_v2"
+        pickContactIntent.setType(ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE); // Show user only contacts w/ phone numbers
+        startActivityForResult(pickContactIntent, PICK_CONTACT_REQUEST);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        // Check which request we're responding to
+        if (requestCode == PICK_CONTACT_REQUEST) {
+            // Make sure the request was successful
+            if (resultCode == RESULT_OK) {
+                // The user picked a contact.
+                // The Intent's data Uri identifies which contact was selected.
+                // Get the URI that points to the selected contact
+                Uri contactUri = data.getData();
+                //打印的结果   content://com.android.contacts/data/1  我选择的是第一个联系人
+                Log.e("Test",contactUri.toString());
+                // We only need the NUMBER column, because there will be only one row in the result
+                // /** Generic data column, the meaning is {@link #MIMETYPE} specific */   data1
+                String[] projection = {ContactsContract.CommonDataKinds.Phone.NUMBER};
+                // Perform the query on the contact to get the NUMBER column
+                // We don't need a selection or sort order (there's only one result for the given URI)
+                // CAUTION: The query() method should be called from a separate thread to avoid blocking
+                // your app's UI thread. (For simplicity of the sample, this code doesn't do that.)
+                // Consider using CursorLoader to perform the query.
+                Cursor cursor = getContentResolver()
+                        .query(contactUri, projection, null, null, null);
+                cursor.moveToFirst();
+
+                // Retrieve the phone number from the NUMBER column
+                int column = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
+                String number = cursor.getString(column);
+
+                // Do something with the phone number...
+                textView.setText(number);
+            }
+        }
+
+    }
+
+
+}
+```
+#允许其他应用启动自己的Activity
+在清单文件中配置即可。如下：
+```xml
+<activity android:name="ShareActivity">
+    <intent-filter>
+        <action android:name="android.intent.action.SEND"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <data android:mimeType="text/plain"/>
+        <data android:mimeType="image/*"/>
+    </intent-filter>
+</activity>
+```
+分别指定了action，category,data属性。
+再如下面的：
+```xml
+<activity android:name="ShareActivity">
+    <!-- filter for sending text; accepts SENDTO action with sms URI schemes -->
+    <intent-filter>
+        <action android:name="android.intent.action.SENDTO"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <data android:scheme="sms" />
+        <data android:scheme="smsto" />
+    </intent-filter>
+    <!-- filter for sending text or images; accepts SEND action and text or image data -->
+    <intent-filter>
+        <action android:name="android.intent.action.SEND"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <data android:mimeType="image/*"/>
+        <data android:mimeType="text/plain"/>
+    </intent-filter>
+</activity>
+```
+> 需要注意的是：为了接受显示的意图，必须指定`CATEGORY_DEFAULT`属性。因为：The methods `startActivity()` and `startActivityForResult()` treat all intents as if they declared the CATEGORY_DEFAULT category. If you do not declare it in your intent filter, no implicit intents will resolve to your activity.
+
+* 处理Intent
+这部分决定显示意图如果启用了这个Activity，那么这个Activity做出怎么样的处理：
+```java
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+
+    setContentView(R.layout.main);
+
+    // Get the intent that started this activity
+    Intent intent = getIntent();
+    Uri data = intent.getData();
+
+    // Figure out what to do based on the intent type
+    if (intent.getType().indexOf("image/") != -1) {
+        // Handle intents with image data ...
+    } else if (intent.getType().equals("text/plain")) {
+        // Handle intents with text ...
+    }
+}
+```
+* 处理返回的结果
+如果显示意图启动的Activity有返回结果，那么需要做出如下面的处理：
+```java
+// Create intent to deliver some kind of result data
+Intent result = new Intent("com.example.RESULT_ACTION", Uri.parse("content://result_uri");
+setResult(Activity.RESULT_OK, result);
+finish();
+```
+只要调用下`setResult(...)`方法，并且最后结束本Activity即可。在`setResult(...)`方法中的第一个参数必须指定`RESULT_OK`或者`RESULT_CANCELED`,
+默认是`RESULT_CANCELED`.
+> 在这里需要注意的是：没必要去检查启用者使用的是`startActivity()`还是`startActivityForResult()`,前者直接忽略`setResult(...)`，后者才会调用。
+
+
+
+
+
+
 
 
 
