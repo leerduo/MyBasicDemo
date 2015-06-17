@@ -179,7 +179,91 @@ list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 完整的代码参见demo。
 #保存文件
 * 保存到内部
+```java
+ public void save(View view) {
+        String myString = "Hello";
+        try {
+            FileOutputStream fos = openFileOutput("test.txt", MODE_PRIVATE);
+            fos.write(myString.getBytes());
+            fos.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void createCacheFile(View view) {
+        File file = getTempFile();
+    }
+
+    private File getTempFile() {
+        String fileName = "Hello";
+        File file = null;
+        try {
+            file = File.createTempFile(fileName, null, this.getCacheDir());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return file;
+    }
+```
 * 保存到外存储
+首先需要读写的权限，其次需要判断SD卡的读写状态：
+```java
+/* Checks if external storage is available for read and write */
+    public boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(state)) {
+            return true;
+        }
+        return false;
+    }
+
+    /* Checks if external storage is available to at least read */
+    public boolean isExternalStorageReadable() {
+        String state = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(state) ||
+                Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
+            return true;
+        }
+        return false;
+    }
+```
+文件的权限包括Public和Private,按需创建：
+```java
+/**
+     * public权限  getExternalStoragePublicDirectory()
+     * @param albumName
+     * @return
+     */
+    public File getAlbumStorageDir(String albumName) {
+        // Get the directory for the user's public pictures directory.
+        File file = new File(Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_PICTURES), albumName);
+        if (!file.mkdirs()) {
+            Log.e("Test", "Directory not created");
+        }
+        return file;
+    }
+
+    /**
+     * private权限  getExternalFilesDir()
+     * @param context
+     * @param albumName
+     * @return
+     */
+    public File getAlbumStorageDir(Context context, String albumName) {
+        // Get the directory for the app's private pictures directory.
+        File file = new File(context.getExternalFilesDir(
+                Environment.DIRECTORY_PICTURES), albumName);
+        if (!file.mkdirs()) {
+            Log.e("Test", "Directory not created");
+        }
+        return file;
+    }
+```
+一些有用的api:
+`getFreeSpace(` or `getTotalSpace()`去获取空间的大小。
+
 
 
 
