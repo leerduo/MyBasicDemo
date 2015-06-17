@@ -1,5 +1,5 @@
-1.ActionBar部分需要注意的是：
-a.修改ActionBar的样式：
+#ActionBar部分需要注意的是：
+* 修改ActionBar的样式：
 ```java
   <!-- the theme applied to the application or activity -->
     <style name="CustomActionBarTheme"
@@ -24,7 +24,7 @@ a.修改ActionBar的样式：
  <color name="actionbar_background">#F3822C</color>
 ```
 之后调用即可。
-b.添加返回上一层
+* 添加返回上一层
 在SecondActivity中，现在添加返回到MainActivity，修改清单文件中的配置信息：
 ```java
   <activity
@@ -41,7 +41,7 @@ b.添加返回上一层
  getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 ```
 这样就可以了。
-c.ActionBar的Overlay模式
+* ActionBar的Overlay模式
 ActionBar占用了Activity的部分空间，可以调用show()和hide()方法来设置它的显示和隐藏，
 但是这样的话，Activity会重新计算并且绘制。为了避免这样的弊端，可以使用ActionBar的Overlay模式，
 在该模式下，ActionBar下的Activity的空间是模糊的，但是当ActionBar隐藏起来的时候，Activity不需要重新
@@ -75,7 +75,7 @@ ActionBar占用了Activity的部分空间，可以调用show()和hide()方法来
 </RelativeLayout>
 ```
 注意，需要修改ActionBar样式文件的颜色为半透明。
-2.在Activity运行时添加Fragment
+#在Activity运行时添加Fragment
 为了添加Fragment，需要得到事务，为了得到事务，需要得到FragmentManager，这是流式接口。
 ```java
 // Check that the activity is using the layout version with
@@ -115,7 +115,7 @@ ActionBar占用了Activity的部分空间，可以调用show()和hide()方法来
                 // Commit the transaction
                 transaction.commit();
 ```
-3.Fragment之间的通信
+#Fragment之间的通信
 Fragment和Fragment之间不能直接通信，它们之间的通信基于它们的宿主Activity。
 代码中，AddFragmentActivity是宿主Activity，BlankFragment是书名列表，OtherFragment显示书名。当点击
 BlankFragment列表中的任意一项的时候，OtherFragment显示书名。
@@ -262,7 +262,7 @@ list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
     }
 ```
 一些有用的api:
-`getFreeSpace(` or `getTotalSpace()`去获取空间的大小。
+`getFreeSpace()` or `getTotalSpace()`去获取空间的大小。
 
 
 
