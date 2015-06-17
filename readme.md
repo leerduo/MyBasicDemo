@@ -177,6 +177,10 @@ list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
     }
 ```
 完整的代码参见demo。
+#保存文件
+* 保存到内部
+* 保存到外存储
+
 
 
 
